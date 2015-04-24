@@ -1,0 +1,649 @@
+<html>
+<head>
+<style>
+
+@font-face {
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Raleway'), url(http://fonts.gstatic.com/s/raleway/v9/0dTEPzkLWceF7z0koJaX1A.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215, U+E0FF, U+EFFD, U+F000;
+}
+body {font-family: 'Raleway', sans-serif;}
+.video_90 {
+  -moz-transform:rotate(90deg);
+  -webkit-transform:rotate(90deg);
+  -o-transform:rotate(90deg);
+  -ms-transform:rotate(90deg);
+  transform:rotate(90deg);
+}
+.blocklySvg {
+
+  border:2px #373737 solid !important;
+}
+
+.steve_shadow {
+    -webkit-filter: drop-shadow(5px -10px 2px rgba(0,0,0,0.3));
+    filter: url(#drop-shadow);
+    -ms-filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
+    filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
+}
+
+.obj_shadow {
+    -webkit-filter: drop-shadow(10px 1px 2px rgba(0,0,0,0.3));
+    filter: url(#drop-shadow);
+    -ms-filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
+    filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
+}
+.blocklyText {
+  cursor: default;
+  font-family: sans-serif;
+  font-size: 8pt !important;
+  fill: #ff0;
+}
+</style>
+<title>Minecraft - Blockly</title>
+
+<script src="blockly_compressed.js"></script>
+<script src="blocks_compressed.js"></script>
+<script src="javascript_compressed.js"></script>
+<script src="blocks/blocklymc.js"></script>
+<script src="msg/js/en.js"></script>
+
+<script src="CSSPlugin.min.js"></script>
+<script src="EasePack.min.js"></script>
+<script src="TweenLite.min.js"></script>
+<script>
+
+var currentVideo = null;
+var isBonus = false;
+var current_level = 1;
+var ai_loop = -1;
+
+var inventory = [];
+
+var steve = {type:"steve", grid:[1,6],w:38,h:70};
+
+var stuffTypes = {
+  "steve": {w:38, h:70, img:"stuff/me/me_norm_back.png", type:"hero"},
+  "creeper":{w:70, h:70, pos:[220,130], type:"monster", img:"stuff/monsters/creeper.png", solved:false, level: 5},
+  "skeleton":{w:70, h:70, type:"monster", img:"stuff/monsters/skeleton.png", solved:false,  level: 3},
+  "spider":{pos:[520,60], type:"monster", img:"stuff/monsters/spider.png", level:2, solved:false},
+  "ghast":{w:50,h:50,pos:[20,140], type:"monster", img:"stuff/monsters/ghast.png", solved:false,  level:7},
+  "zombie":{w:70,h:70, type:"monster", img:"stuff/monsters/zombie_left.png", solved:false, level:3},
+  "blaze":{pos:[320,370], type:"monster", img:"stuff/monsters/Blaze.png", solved:false, level:9},
+  "magma_cube":{w:40,h:40,pos:[530,60], type:"monster", img:"stuff/monsters/Magma_Cube.png", solved:false, level:9},
+  "witch":{pos:[120,300], type:"monster", img:"stuff/monsters/witch.png", solved:false, level:6},
+  "wither":{w:50,h:50,pos:[530,300], type:"monster", img:"stuff/monsters/wither.png", solved:false,level:10},
+  "silverfish":{w:40,h:40, type:"monster", img:"stuff/monsters/silverfish.png", solved:false,  level:1},
+  "wolf": {pos:[420,210], type:"monster", img:"stuff/monsters/wolf_wild.png", solved:false, level:8},
+  "enderdragon": {w:80,h:80,pos:[410,290], type:"monster", img:"stuff/monsters/enderdragon.png", solved:false,level:10},
+  "slime":{w:50,h:50,pos:[120,60], type:"monster", img:"stuff/monsters/slime.png", solved:false, level:3},
+  "zombie_pig":{pos:[320,55], type:"monster", img:"stuff/monsters/zombie_pigman.png", solved:false, level:4},
+  "wither_skeleton":{pos:[420,295], type:"monster", img:"stuff/monsters/wither_skeleton.png", solved:false, level:4},
+  "enderman":{w:70,h:70,pos:[310,210], type:"monster", img:"stuff/monsters/enderman.png", solved:false,level:10},
+  "sword_wood": {w:40, h:40, pos:[30,225], type:"weapon", img:"stuff/weapons/wooden_sword.png",order:13, level:0},
+  "planks_spruce": {w:40,h:40,pos:[230,60], type:"block", img:"stuff/building_blocks/spruce_wood_planks.png",order:13, level:0},
+  "cobblestone": {w:40,h:40,pos:[130,140], type:"block", img:"stuff/building_blocks/cobblestone.png",order:13, level:0},
+  "chicken": {w:40,h:40, level:0, type:"critter", img:"stuff/critters/chicken.png",order:13},
+  "pig": {w:40,h:40,pos:[430,65], level:0,type:"critter", img:"stuff/critters/pig.png",order:13},
+}
+
+var stuff = [
+      [
+        {id:"block1",type:"cobblestone",grid:[1,3],get:true},
+        {id:"block2",type:"cobblestone",grid:[1,5],get:true},
+      ]
+    ];
+
+
+var character = {"front":"stuff/me/me_norm_front.png","back":"stuff/me/me_norm_back.png","left":"stuff/me/me_norm_left.png","right":"stuff/me/me_norm_right.png"}
+
+var orient="back";
+var move="up";
+var anim_stack=[];
+
+function reset() {
+  inventory = [];
+  updateInventory();
+  var px = animdiv.offsetLeft;
+  var py = animdiv.offsetTop;
+  anim_stack=[];
+  orient="back";
+  move="up";
+  steve.grid = [1,6];
+  steve.img = character.back;
+  setSteveGrid();
+  replaceItems();
+}
+
+function setSteveGrid(grid) {
+  var rj=document.getElementById("rj");
+  rj.src=character.back;
+  var pos = getThingXY(steve);
+  rj.style.left=(pos[0])+"px";  
+  rj.style.top=(pos[1])+"px";
+}
+
+function run_code() {
+  anim_stack=[];
+  var code = Blockly.JavaScript.workspaceToCode();
+  document.getElementById("codewin").innerHTML=code;
+  try {
+    eval(code);
+  } catch (e) {
+    alert(e);
+  }
+  run_anim();
+}
+
+function run_anim() {
+ var cmd=[];
+ var rj=document.getElementById("rj");
+ var animdiv=document.getElementById("animdiv");
+ TweenLite.to("#thingdiv", .5, {autoAlpha:"0"});
+ var audiostep = document.getElementById("rj_step");
+ var audioturn = document.getElementById("rj_turn");
+ var audioshake = document.getElementById("rj_shake");
+ var step_sand = document.getElementById("step_sand");
+
+ if (anim_stack.length>0) {
+    cmd=anim_stack.shift();
+    if (cmd[0]=="shake") {
+      var dir = cmd[1];
+      TweenLite.to(rj, .05, {left:"+="+(dir[0]*20), top:"+="+(dir[1]*20), onComplete:function () {
+          TweenLite.to(rj, .05, {left:"-="+(dir[0]*20), top:"-="+(dir[1]*20), onComplete:function () {
+              setTimeout(run_anim,200);
+            }});
+        }});
+	  }
+    else if (cmd[0]=="turn") {
+      var turn=cmd[1];
+      audioturn.play();
+      steve.img = character[turn];
+      rj.src=steve.img;
+      setTimeout(run_anim,200);
+    }
+    else if (cmd[0]=="get_item") {
+      doGetItem();
+    }
+    else if (cmd[0]=="drop_item") {
+      doDropItem()
+    }
+    else if (cmd[0]=="move") {
+      var dir=cmd[1];
+      step_sand.play();
+      var animcheck=checkMove(dir);
+
+      if (!animcheck[0]) {
+        var sxy=animcheck[1];
+        anim_stack.unshift(["shake",sxy]);
+        audioshake.play();
+        setTimeout(run_anim,200);
+      }
+      else {
+        step_sand.volume=0.1;
+        TweenLite.to(rj, .5, {left:"+="+(dir[0]*100), top:"+="+(dir[1]*80), onComplete:function () {
+        	steve.grid[0]+=dir[0];
+          steve.grid[1]+=dir[1];
+        	var matched = false;
+          setTimeout(run_anim,200);
+        }});
+      }
+    }
+  }
+}
+
+function activate_ai() {
+  var audiochicken = document.getElementById("chicken");
+  var animdiv=document.getElementById("animdiv");
+  var px = animdiv.offsetLeft;
+  var py = animdiv.offsetTop;
+  var levelStuff = stuff[current_level-1];
+  for (var i in levelStuff) {
+    var thing = levelStuff[i];
+    var thingClass = stuffTypes[thing.type];
+    var mv = [];
+    if  (thingClass.type == "monster") {
+      var dice = Math.floor((Math.random() * 16) + 1);
+      if (dice>8) {
+        if (thing.img.src.indexOf("_left")>-1) {
+          thing.img.src = thing.img.src.replace("_left","_right");
+          TweenLite.to(thing.img, .3, {top:"+=5px"});
+        }
+        else if (thing.img.src.indexOf("_right")>-1) {
+          thing.img.src = thing.img.src.replace("_right","_left");
+          TweenLite.to(thing.img, .3, {top:"-=5px"});
+        }
+        dice = Math.floor((Math.random() * 16) + 1);
+        if (dice < 6) {
+          var audiomonster = document.getElementById("monster");
+          var src1 = document.getElementById("monsterOGG");
+          var src2 = document.getElementById("monsterMP3");
+          src1.src = "audio/"+thing.type+".ogg";
+          src2.src = "audio/"+thing.type+".mp3";
+          audiomonster.volume = 0.3;
+          audiomonster.load();
+          audiomonster.play();
+        }
+      }
+    }
+
+    else if (thingClass.type=="critter") {
+      var dice = Math.floor((Math.random() * 16) + 1);
+      if (dice<=8) continue;
+      dice = Math.floor((Math.random() * 16) + 1);
+      if (dice<=4) mv = [0,-1];
+      else if (dice<=8) mv = [1,0];
+      else if (dice<=12) mv = [0,1];
+      else mv = [-1,0];
+      if (!aiCheck(mv,thing)[0]) continue;
+      if (mv[0]>0) thing.img.src = "stuff/critters/"+thing.type+"_left.png";
+      if (mv[0]<0) thing.img.src = "stuff/critters/"+thing.type+"_right.png";
+      var pos = getThingXY(thing);
+      var x = pos[0];
+      var y = pos[1];
+      x+=100*mv[0];
+      y+=80*mv[1];
+      thing.grid[0]+=mv[0];
+      thing.grid[1]+=mv[1];
+      dice = Math.floor((Math.random() * 16) + 1);
+      if (thing.type == "chicken" && dice>8) audiochicken.play()
+      TweenLite.to(thing.img, .3, {left:(px+x), top:(py+y)});
+    }
+  }
+}
+
+function getThingXY(thing) {
+  var thingClass = stuffTypes[thing.type];
+  var w = thingClass.w;
+  var h = thingClass.h;
+  var x = (thing.grid[0]-1) * 100;
+  var y = (thing.grid[1]-1) * 80;
+  x+=50 - (w/2);
+  y+=40 - (h/2);
+  return [x,y];
+}
+
+function aiCheck(dir, thing) {
+  var mx=dir[0];
+  var my=dir[1];
+  var grid = thing.grid;
+  var newgrid = [grid[0]+mx, grid[1]+my];
+  if (newgrid[0]<1 && mx==-1) return [false,[-1,0]];
+  if (newgrid[0]>6 && mx==1) return [false,[1,0]];
+  if (newgrid[1]<1 && my==-1) return [false,[0,-1]];
+  if (newgrid[1]>6 && my==1) return [false,[0,1]];
+  for (var i in thing.nogo) {
+    if (newgrid[0] == thing.nogo[i][0] && newgrid[1]==thing.nogo[i][1]) {
+      return [false,-1];
+    }
+  }
+  return [true,null];
+}
+
+function checkMove(dir, thing) {
+  var mx=dir[0];
+  var my=dir[1];
+  var x = -1;
+  var y = -1;
+  if (typeof thing == 'undefined') {
+    var grid = steve.grid;
+    var newgrid = [grid[0]+mx, grid[1]+my];
+    if (newgrid[0]<1 && mx==-1) return [false,[-1,0]];
+    if (newgrid[0]>6 && mx==1) return [false,[1,0]];
+    if (newgrid[1]<1 && my==-1) return [false,[0,-1]];
+    if (newgrid[1]>6 && my==1) return [false,[0,1]];
+    return [true,null];
+  }
+  else {
+    var grid = thing.grid;
+    var newgrid = [grid[0]+mx, grid[1]+my];
+    if (newgrid[0]<1 && mx==-1) return [false,[-1,0]];
+    if (newgrid[0]>6 && mx==1) return [false,[1,0]];
+    if (newgrid[1]<1 && my==-1) return [false,[0,-1]];
+    if (newgrid[1]>6 && my==1) return [false,[0,1]];
+    return [true,null];
+  }
+
+}
+
+function turnLeft() {
+  if (orient=="front")
+    orient="left";
+  else if (orient=="left")
+    orient="back";
+  else if (orient=="back")
+    orient="right";
+  else if (orient=="right")
+    orient="front";
+  anim_stack.push(["turn",orient]);
+}
+
+function turnRight() {
+  if (orient=="front")
+    orient="right";
+  else if (orient=="right")
+    orient="back";
+  else if (orient=="back")
+    orient="left";
+  else if (orient=="left")
+    orient="front";
+  anim_stack.push(["turn",orient]);
+}
+
+function moveForward() {
+  if (orient=="front")
+    move = [0,1];
+  else if (orient=="left")
+    move = [1,0];
+  else if (orient=="back")
+    move = [0,-1];
+  else if (orient=="right")
+    move = [-1,0];
+  anim_stack.push(["move",move]);
+}
+
+function doGetItem() {
+  var levelStuff = stuff[current_level-1];
+  for (var i in levelStuff) {
+    var thing = levelStuff[i];
+    if (thing.grid[0] == steve.grid[0] && thing.grid[1]==steve.grid[1] && thing.get) {
+      var thingClass = stuffTypes[thing.type];
+      var sfx = document.getElementById("sfx");
+      var src1 = document.getElementById("sfxOGG");
+      var src2 = document.getElementById("sfxMP3");
+      src1.src = "audio/click.ogg";
+      src2.src = "audio/click.mp3";
+      sfx.volume = 0.5;
+      sfx.load();
+      sfx.play();
+      TweenLite.to(thing.img, .3, {scaleX:8.0, scaleY:8.0, autoAlpha:0, onComplete:function() {
+          inventory.push(thing);
+          updateInventory();
+      }});
+      break;
+    }
+  }
+  setTimeout(run_anim,200);
+}
+
+function getItem() {
+  anim_stack.push(["get_item",null]);
+}
+
+function dropItem() {
+  anim_stack.push(["drop_item",null]);
+}
+
+function doDropItem() {
+  var pos = getThingXY(steve);
+  var x = pos[0];
+  var y = pos[1];
+  var animdiv=document.getElementById("animdiv");
+  var px = animdiv.offsetLeft;
+  var py = animdiv.offsetTop;
+  var thing = inventory.pop();
+  updateInventory();
+  thing.grid[0]=steve.grid[0];
+  thing.grid[1]=steve.grid[1];
+  pos = getThingXY(thing);
+  x = pos[0]+px;
+  y = pos[1]+py;  
+  thing.img.style.top = y+"px";
+  thing.img.style.left = x+"px";
+  TweenLite.to(thing.img, .3, {scaleX:1.0, scaleY:1.0, autoAlpha:1.0, onComplete:function() {
+    var goal = goals[current_level-1];
+    if (goal.actionCheck == "drop") checkGoal();
+  }});
+  setTimeout(run_anim,200);
+}
+
+function replaceItems() {
+  var px = animdiv.offsetLeft;
+  var py = animdiv.offsetTop;
+  var levelStuff = stuff[current_level-1];
+  for (var i in levelStuff) {
+    var thing = levelStuff[i];
+    thing.grid = [thing.origGrid[0],thing.origGrid[1]];
+    var pos = getThingXY(thing);
+    var x = pos[0];
+    var y = pos[1];
+    x+=px;
+    y+=py;
+    thing.img.style.top = y+"px";
+    thing.img.style.left = x+"px";
+    TweenLite.to(thing.img, .3, {scaleX:1.0, scaleY:1.0, autoAlpha:1.0});
+  }
+}
+function placeItems() {
+  var animdiv=document.getElementById("animdiv");
+  var px = animdiv.offsetLeft;
+  var py = animdiv.offsetTop;
+
+  var levelStuff = stuff[current_level-1];
+
+  for (var i in levelStuff) {
+    var thing = levelStuff[i];
+    thing.origGrid = [thing.grid[0],thing.grid[1]];
+    var thingClass = stuffTypes[thing.type];
+    var w = thingClass.w;
+    var h = thingClass.h;
+    var x = (thing.grid[0]-1) * 100;
+    var y = (thing.grid[1]-1) * 80;
+    x+=50 - (w/2);
+    y+=40 - (h/2);
+    var img = new Image();
+    img.className="obj_shadow";
+    if (typeof thingClass.img!='undefined') 
+        img.src = thingClass.img;
+    if (typeof thingClass.w!='undefined') {
+      img.height=thingClass.h;
+      img.width=thingClass.w;
+    }
+    else
+      img.height=60;
+    img.style.position="absolute";
+    img.id = "img_"+thing.id;
+    img.style.left=(px+x)+"px";
+    img.style.top=(py+y)+"px";
+    animdiv.appendChild(img);
+    thing.img = img;
+  }
+}
+
+function updateInventory() {
+  var x = 0;
+  var y = 0;
+  var invdiv=document.getElementById("invdiv");
+  while (invdiv.firstChild) invdiv.removeChild(invdiv.firstChild);
+  for (var i in inventory) {
+    var thing = inventory[i];
+    var thingClass = stuffTypes[thing.type];
+    var img = new Image();
+    img.src = thing.img.src;
+    img.width = thingClass.w;
+    img.height = thingClass.h;
+    invdiv.appendChild(img);
+  }
+
+}
+
+function initPage() {
+ 	var audiostep = document.getElementById("rj_step");
+	var audioturn = document.getElementById("rj_turn");
+	var audioshake = document.getElementById("rj_shake");
+  var audiochicken = document.getElementById("chicken");
+  audiochicken.load();
+	audiostep.load();
+	audioturn.load();
+  var animdiv=document.getElementById("animdiv");
+  var px = animdiv.offsetLeft;
+  var py = animdiv.offsetTop;
+	placeItems();
+  document.getElementById("rj").style.zIndex=1000;
+  ai_loop = setInterval(activate_ai,2000);
+  checkGoal();
+}
+
+
+var goals = [
+  {type:"barrier", actionCheck:"drop", thingType:"cobblestone", grids:[[3,1],[3,2]]}
+];
+
+function checkGoal() {
+  var goal = goals[current_level-1];
+  var goalProgress = 0;
+  var goalTarget = 0;
+  if (goal.type == "barrier") {
+    goalTarget = goal.grids.length;
+    var levelStuff = stuff[current_level-1];
+    for (var i in levelStuff) {
+      var thing = levelStuff[i];
+      var thingClass = stuffTypes[thing.type];
+      if (thing.type==goal.thingType) {
+        for (var k in goal.grids) {
+          if (goal.grids[k][0] == thing.grid[0] && goal.grids[k][1] == thing.grid[1]) {
+            goalProgress+=1;
+          }
+        }
+      }
+    }
+    var progdiv = document.getElementById("progdiv");
+    var progmsg = "Progress to goal:<br/>";
+    for (var i =0;i<goalProgress;i++) {
+      progmsg+="<img src='grafx/star.png' style='margin-top:10px;height:20px;width:20px;float:left;margin-left:5px;'>";
+    }
+    for (var i = 0; i< (goalTarget - goalProgress);i++) {
+      progmsg+="<img src='grafx/star_gray.png' style='margin-top:10px;height:20px;width:20px;float:left;margin-left:5px;'>";
+    }
+    progdiv.innerHTML=progmsg;
+    if (goalProgress == goalTarget) showWinScreen();
+  }
+
+}
+function showWinScreen() {
+  var winner = new Image();
+  winner.src="grafx/you_did_it.png";
+  winner.style.position="absolute";
+  winner.style.zIndex=20000;
+  winner.style.width="530px"; //530
+  winner.style.height="550px";// 550
+  winner.style.display="none";
+  var viewportwidth;
+  var viewportheight;
+
+  if (typeof window.innerWidth != 'undefined') {
+      viewportwidth = window.innerWidth,
+    viewportheight = window.innerHeight
+  }
+  else if (typeof document.documentElement != 'undefined'
+   && typeof document.documentElement.clientWidth !=
+   'undefined' && document.documentElement.clientWidth != 0) {
+      viewportwidth = document.documentElement.clientWidth,
+     viewportheight = document.documentElement.clientHeight
+  }
+  else {
+    viewportwidth = document.getElementsByTagName('body')[0].clientWidth,
+    viewportheight = document.getElementsByTagName('body')[0].clientHeight
+  }
+  var x = viewportwidth/2;
+  var y = viewportheight/2;
+  x-=265;
+  y-=275;
+  winner.style.top = y+"px";
+  winner.style.left = x+"px";
+  document.body.appendChild(winner);
+  var sfx = document.getElementById("sfx");
+  var src1 = document.getElementById("sfxOGG");
+  var src2 = document.getElementById("sfxMP3");
+  src1.src = "audio/you-did-it.ogg";
+  src2.src = "audio/you-did-it.mp3";
+  sfx.load();
+  sfx.play();
+  TweenLite.to(winner, 0.1, {scaleX:.1, scaleY:.1, autoAlpha:0.0, onComplete:function() {
+    winner.style.display="block";
+    TweenLite.to(winner, .6, {ease: Elastic.easeOut.config(1.0, .3),scaleX:1.0, scaleY:1.0, autoAlpha:1.0});
+  }});
+
+
+}
+</script>
+</head>
+<body onload = "initPage();">
+
+<img src="grafx/trap_zombie.png" height="70" style="margin-left:20px;">
+<div id="container" style="width:1050px;">
+  <div id="animcontainer" style="float:right;">
+    <div id="animdiv" style="border:2px solid #373737; width:600px;height:480px;background-image:url('grafx/bg-grid-stage-1.png')"><img class="steve_shadow" height=70 style="position:relative;top:390px;left:30px;" src="stuff/me/me_norm_back.png" id="rj"></div>
+    <br>
+    <div id="invcon" style="float:left;width:380px;height:70px;border:2px solid gray;">
+      <div id="invdiv" style="padding:10px;"></div>
+    </div>
+    <div id="progcon" style="margin-left:10px;float:left;width:200px;height:70px;border:2px solid gray;">
+      <div id="progdiv" style="font-weight:bold;padding:10px;">Progress to goal:</div>
+    </div>
+  </div>
+  <div id="codewin" style="display:none;padding:10px;overflow:auto;font-family:courier;width:500px;height:460px;border:1px solid gray;float:right;">
+  </div>
+  <div id="blocklyDiv" style="height: 480px; width: 400px;"></div><br>
+  <div style="padding:0px 0px 0px 10px;display:inline-block;height:30px;background-color:#0097cc;"><a style="text-decoration:none;color:white;" href="javascript:run_code();">run code <img style="position:relative;left:10px;" src="grafx/play-btn.png" border=0 height="30" align="absmiddle"></a></div> 
+  &nbsp;  &nbsp;
+  <div style="cursor:pointer;padding:0px 0px 0px 10px;display:inline-block;height:30px;background-color:#d13939;"><a style="text-decoration:none;color:white;" href="javascript:reset();">reset <img style="cursor:pointer;position:relative;left:10px;" src="grafx/reset-btn.png" border=0 height="30" align="absmiddle"></a></div>
+<br><br>
+
+</div>
+
+<br style="clear:both;"/>
+<br>
+
+
+
+<xml id="toolbox" style="display: none">
+  <block type="blocklymc_left"></block>
+  <block type="blocklymc_right"></block>
+  <block type="blocklymc_forward"></block>
+  <block type="blocklymc_get_item"></block>
+  <block type="blocklymc_drop_item"></block>
+  <block type="controls_repeat"></block>
+  <!-- <block type="procedures_defnoreturn"></block>
+  <block type="procedures_callnoreturn"></block> -->
+</xml>
+<script>
+  Blockly.inject(document.getElementById('blocklyDiv'),
+      {toolbox: document.getElementById('toolbox'), trashcan:false});
+</script>
+
+<audio id="monster">
+  <source id="monsterOGG" src="" type="audio/ogg"></source>
+  <source id="monsterMP3" src="" type="audio/mp3"></source>
+</audio>
+
+<audio id="sfx">
+  <source id="sfxOGG" src="" type="audio/ogg"></source>
+  <source id="sfxMP3" src="" type="audio/mp3"></source>
+</audio>
+
+<audio id="step_sand">
+<source type="audio/ogg" src="audio/step_sand.ogg">
+<source type="audio/mpeg" src="audio/step_sand.mp3">
+</audio>
+<audio id="chicken">
+<source type="audio/ogg" src="audio/chicken.ogg">
+<source type="audio/mpeg" src="audio/chicken.mp3">
+</audio>
+<audio id="rj_turn" >
+<source type="audio/ogg" src="audio/turn.ogg">
+<source type="audio/mpeg" src="audio/turn.mp3">
+</audio>
+<audio id="rj_step">
+<source type="audio/ogg" src="audio/step.ogg">
+<source type="audio/mpeg" src="audio/step.mp3">
+</audio>
+<audio id="rj_shake">
+<source type="audio/ogg" src="audio/shake.ogg">
+<source type="audio/mpeg" src="audio/shake.mp3">
+</audio>
+
+</body>
+</html>
